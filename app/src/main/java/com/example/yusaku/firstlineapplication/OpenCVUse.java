@@ -3,10 +3,12 @@ package com.example.yusaku.firstlineapplication;
 import android.util.Log;
 
 import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
+import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
 
 /**
@@ -19,18 +21,28 @@ public class OpenCVUse {
     public Mat serchLine(Mat src ){
         Mat edge   = new Mat();
         Mat lines = new Mat();
+        Mat circleMat = new Mat();
+        Mat gray = new Mat();
+
 
         double[] data;
+        double[] circleData = new double[3];
         double rho, theta;
         Point pt1 = new Point();
         Point pt2 = new Point();
+        Point circleCenter = new Point();
         double x , y1  = 0 , y2 = 999;
         double a,b;
+        double circleRaduian;
 
         Imgproc.cvtColor(src , edge, Imgproc.COLOR_RGB2GRAY);
         Imgproc.GaussianBlur(edge,edge,new Size(5,3),8,6);
         Imgproc.Canny(edge, edge, 80, 100);
         Imgproc.HoughLinesP(edge, lines, 1, Math.PI / 180 , 100, 100 ,10);
+
+        Imgproc.cvtColor(src ,gray , Imgproc.COLOR_RGB2GRAY);
+        Imgproc.GaussianBlur(gray,gray,new Size(9,9),2,2);
+        Imgproc.HoughCircles(gray , circleMat , Imgproc.CV_HOUGH_GRADIENT , 2 , gray.rows() / 4 ,100 ,50 ,5 ,20);
 
         for (int i = 0; i < lines.cols(); i++){
             data = lines.get(0, i);
@@ -55,6 +67,19 @@ public class OpenCVUse {
 
 
             Core.line(src, pt1, pt2, new Scalar(255, 0, 0), 1);
+        }
+
+        for (int i = 0 ; i < circleMat.cols() ; i++){
+
+            circleData = circleMat.get(0,i);
+            circleCenter.x = Math.round(circleData[0]);
+            circleCenter.y = Math.round(circleData[1]);
+            circleRaduian = Math.round(circleData[2]);
+            Core.circle(src,circleCenter,(int) circleRaduian , new Scalar(255,0,0), 2);
+
+
+
+
         }
 
 
@@ -139,5 +164,28 @@ public class OpenCVUse {
         else
         y = (int)x;
         return y;
+    }
+}
+
+class TmatchClass{
+
+    public Mat matchFile(Mat conparedImageMat , Mat conparImageMat){
+
+        Mat result = new Mat(conparedImageMat.rows() - conparImageMat.rows() + 5, conparedImageMat.cols() - conparImageMat.cols() + 5, CvType.CV_32FC1);
+
+        //テンプレートマッチ実行（TM_CCOEFF_NORMED：相関係数＋正規化）
+        Imgproc.matchTemplate(conparedImageMat, conparImageMat, result, Imgproc.TM_CCOEFF_NORMED);
+        //結果から相関係数がしきい値以下を削除（０にする）
+        Imgproc.threshold(result, result, 0.4, 1.0, Imgproc.THRESH_TOZERO); //しきい値=0.4
+
+        for (int i=0;i<result.rows();i++) {
+            for (int j=0;j<result.cols();j++) {
+                if (result.get(i, j)[0] > 0) {
+                    Core.rectangle(conparedImageMat, new Point(j, i), new Point(j + conparImageMat.cols(), i + conparImageMat.rows()), new Scalar(0, 0, 255));
+                }
+            }
+        }
+
+        return conparedImageMat;
     }
 }
